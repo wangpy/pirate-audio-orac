@@ -1,10 +1,17 @@
 # pirate-audio-orac
 ORAC Controller for Pimoroni Pirate Audio
 
+## Features
+* Full ORAC controlling via OSC /Kontrol messages
+  - MEC needs to be patched to send resources correctly upon connection. Refer to this [PR](https://github.com/TheTechnobear/MEC/pull/23)
+* Device status (network IP) display and maintenance (shutdown)
+
 ## Installation
 The following steps are for [**Patchbox OS**](https://blokas.io/patchbox-os/)
 
 Enable **ORAC** module using `patchbox module config`.
+
+To support changing module / preset, MEC needs to be patched and rebuilt. Refer to this [PR](https://github.com/TheTechnobear/MEC/pull/23)
 
 Set up Pirate Audio according to it's [documentation](https://github.com/pimoroni/pirate-audio), or add the following config to `/boot/config.txt`:
 ```
