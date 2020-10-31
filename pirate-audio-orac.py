@@ -800,27 +800,28 @@ class DeviceShutdownField(BaseField):
     show_confirm = False
 
     def render(self):
+        # FIXME(wangpy): place unset of show_confirm to a better place
+        if not self.is_focused:
+            self.show_confirm = False
         get_screen().draw_rect(self.row_rect, Color_WHITE if self.is_focused else Color_BLACK)
         text = "PRESS B TO CONFIRM" if self.show_confirm else "[ Shutdown ]"
         get_screen().draw_text_in_rect(text, self.row_rect, Color_BLACK if self.is_focused else Color_WHITE)
-    def restore_field(self):
-        self.show_confirm = False
 
-    def shutdown_or_confirm(self, is_decrease_button_pressed):
+    def confirm_shutdown(self, is_decrease_button_pressed):
+        self.log("confirm_shutdown show_confirm=%d decrease_pressed=%d" % (self.show_confirm, is_decrease_button_pressed))
         if self.show_confirm:
             if is_decrease_button_pressed:
-                os.system("sudo shutdown -h now")
+                os.system("/usr/bin/sudo /usr/sbin/shutdown -h now")
             else:
                 self.show_confirm = False
         else:
             self.show_confirm = True
-            get_controller().set_update_callback(self.restore_field)
 
     def perform_decrease(self, offset_level):
-        self.shutdown_or_confirm(True)
+        self.confirm_shutdown(True)
 
     def perform_increase(self, offset_level):
-        self.shutdown_or_confirm(False)
+        self.confirm_shutdown(False)
 
 class DeviceNetworkIpField(BaseField):
     interface_id = None
@@ -1093,7 +1094,7 @@ class MenuView(BaseView):
         return 6
 
 class DeviceView(BaseView):
-    row_text = ["==== Device ====", "", "", "", "Pirate Audio Patchbox", "Controller by wangpy"]
+    row_text = ["==== Device ====", "", "", "", "Pirate Audio ORAC Controller", "by wangpy"]
 
     def create_field_for_row(self, row_index):
         if row_index == 1:
@@ -1256,6 +1257,7 @@ class Controller:
         for pin in self.BUTTONS:
             GPIO.add_event_detect(pin, GPIO.BOTH, self.handle_button, bouncetime=20)
 
+        signal.signal(signal.SIGHUP, self.sigalrm_handler)
         signal.signal(signal.SIGINT, self.sigint_handler)
         signal.signal(signal.SIGTERM, self.sigint_handler)
         signal.signal(signal.SIGALRM, self.sigalrm_handler)
