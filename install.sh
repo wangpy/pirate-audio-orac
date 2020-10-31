@@ -9,7 +9,8 @@ sudo apt-get update
 sudo apt-get install -y git \
 	python3-rpi.gpio python3-spidev python3-pip python3-pil python3-numpy
 
-#git clone $REPO_URL
+rm -rf $REPO_NAME
+git clone $REPO_URL
 cd $REPO_NAME
 pip3 install -r requirements.txt
 sudo rm -rf $APP_DIR
