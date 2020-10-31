@@ -1,0 +1,14 @@
+[Unit]
+Description=Pirate Audio ORAC Controller
+After=mec.service
+Requires=mec.service
+
+[Service]
+User=patch
+Environment=HOME=/home/patch
+Restart=always
+WorkingDirectory=/usr/local/pirate-audio-orac
+ExecStart=/usr/bin/python3 /usr/local/pirate-audio-orac/pirate-audio-orac.py
+
+[Install]
+WantedBy=multi-user.target
