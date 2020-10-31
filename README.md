@@ -24,7 +24,7 @@ Select **hifibery-dac** as the jack audio interface: Run `patchbox jack config` 
 
 Run the following command to install the controller:
 ```sh
-curl https://raw.githubusercontent.com/wangpy/pirate-audio-orac/master/install.sh | sh
+curl https://raw.githubusercontent.com/wangpy/pirate-audio-orac/main/install.sh | bash
 ```
 
 The contoller interface should start running when installation completes. The service runs when the device boots.
