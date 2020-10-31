@@ -20,7 +20,7 @@ dtoverlay=hifiberry-dac
 gpio=25=op,dh
 ```
 
-Select **hifibery-dac** as the jack audio interface: Run `patchbox jack config` and select **hifiberry-dac** (48000/128/2 config should work)
+Select **hifibery-dac** as the jack audio interface: Run `patchbox` -> **jack** -> **config** and select **sndrpihifiberry** (48000/128/2 config should work)
 
 Run the following command to install the controller:
 ```sh
