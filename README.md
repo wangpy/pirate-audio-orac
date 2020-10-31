@@ -1,6 +1,8 @@
 # pirate-audio-orac
 ORAC Controller for Pimoroni Pirate Audio
 
+[![](http://img.youtube.com/vi/QDBVFwmH3f0/0.jpg)](http://www.youtube.com/watch?v=QDBVFwmH3f0 "Pirate Audio + Keybow = ORAC Fun")
+
 ## Features
 * Full ORAC controlling via OSC /Kontrol messages
   - MEC needs to be patched to send resources correctly upon connection. Refer to this [PR](https://github.com/TheTechnobear/MEC/pull/23)
@@ -30,12 +32,12 @@ curl https://raw.githubusercontent.com/wangpy/pirate-audio-orac/main/install.sh 
 The contoller interface should start running when installation completes. The service runs when the device boots.
 
 ## Navigation
-* A button: move cursor up
-  - "SELECT ITEM" in module / preset selection menu
-* X button: move cursor up 
-  - "SELECT ITEM" in module / preset selection menu
-* A+X button: switch pages
-* B button: decrease parameter / previous page / toggle / perform 
-  - "MOVE CURSOR DOWN in module / preset selection menu
-* Y: button: increase parameter / next page / toggle / perform 
-  - "MOVE CURSOR DOWN in module / preset selection menu
+* **A** button: **Move up** cursor
+  - In module / preset selection menu: **Select Item**
+* **X** button: **Move down** cursor 
+  - In module / preset selection menu: **Select Item**
+* **A+X** button: **Switch** between main pages or **quit** module / preset selection menu
+* **B** button: **Decrease** parameter / previous page / toggle / perform 
+  - In module / preset selection menu: **Move up** cursor
+* **Y** button: **Increase** parameter / next page / toggle / perform 
+  - In module / preset selection menu: **Move down** cursor
