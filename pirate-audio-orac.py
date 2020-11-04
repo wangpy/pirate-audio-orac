@@ -1242,6 +1242,109 @@ def get_view_manager():
 def get_active_view():
     return get_view_manager().get_active_view()
 
+class RotaryState:
+    is_ccw = 0
+    state = 0
+    def __init__(self, is_ccw, init_state):
+        self.is_ccw = is_ccw
+        self.state = self.get_state(init_state)
+
+    def get_state(self, state):
+        return 3 - state if not self.is_ccw else state
+
+    def maybe_update_state(self, state):
+        state = self.get_state(state)
+        if self.state == 3 and state == 0:
+            self.state = 0
+            return True
+        elif state == self.state + 1:
+            self.state = state
+        return False
+
+class RotaryEncoder:
+    pin_a = 0
+    pin_b = 0
+
+    rotate_callback = None
+    pin_state = None
+    state_cw = None
+    state_ccw = None
+    last_direction = 0
+
+    GRAY_CODE_INDEX = [0, 1, 3, 2]
+
+    def __init__(self, pin_a, pin_b, rotate_callback):
+        self.pin_a = pin_a
+        self.pin_b = pin_b
+        self.rotate_callback = rotate_callback
+
+
+        pins = [ self.pin_a, self.pin_b ]
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(pins, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+        self.pin_state = {}
+        for pin in pins:
+            state = GPIO.input(pin)
+            self.pin_state[pin] = state
+            GPIO.add_event_detect(pin, GPIO.BOTH, self.handle_pin)
+
+        rotary_state = self.get_rotary_state()
+        self.state_cw = RotaryState(False, rotary_state)
+        self.state_ccw = RotaryState(True, rotary_state)
+        self.last_direction = 0
+
+    def get_rotary_state(self):
+        gray_code = 2 * self.pin_state[self.pin_a] + self.pin_state[self.pin_b]
+        return self.GRAY_CODE_INDEX[gray_code]
+
+    def handle_pin(self, pin):
+        state = GPIO.input(pin)
+        #print("handle_pin pin=%d state=%d", (pin, state))
+        if state == self.pin_state[pin]:
+            return
+        self.pin_state[pin] = state
+        rotary_state = self.get_rotary_state()
+        cw_flag = self.state_cw.maybe_update_state(rotary_state)
+        ccw_flag = self.state_ccw.maybe_update_state(rotary_state)
+        #print("handle_pin rotary_state=%d cw_state=%d ccw_state=%d" % (rotary_state, self.state_cw.state, self.state_ccw.state))
+        if cw_flag or ccw_flag:
+            direction = 1 if cw_flag else -1
+            if self.last_direction == direction:
+                self.rotate_callback(direction)
+            self.last_direction = direction
+
+class RGBRotaryEncoderWithSwitch:
+    # https://shop.pimoroni.com/products/sparkfun-rotary-encoder-breakout-illuminated-rg-rgb
+    # top 3 pins: [ rA, C, rB ]
+    # bottom 5 pins: [ +, cB, SW, cG, cR ]
+    pins = None
+    encoder = None
+    rotate_callback = None
+    push_callback = None
+
+    def __init__(self, pins, rotate_callback, push_callback):
+        self.pins = pins
+        self.rotate_callback = rotate_callback
+        self.push_callback = push_callback
+
+        self.encoder = RotaryEncoder(pins["rA"], pins["rB"], self.handle_rotate)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup([ pins["SW"] ], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(pins["SW"], GPIO.RISING, self.handle_sw, bouncetime=100)
+        # TODO: set up cR, cG, cB
+
+    def handle_rotate(self, direction):
+        self.rotate_callback(direction)
+
+    def handle_sw(self, pin):
+        self.push_callback()
+
+    def set_color(self, color):
+        # TODO
+        pass
+
+
 class Controller:
     BUTTONS = [5, 6, 16, 24]
     LABELS = ['A', 'B', 'X', 'Y']
@@ -1256,6 +1359,9 @@ class Controller:
         GPIO.setup(self.BUTTONS, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         for pin in self.BUTTONS:
             GPIO.add_event_detect(pin, GPIO.BOTH, self.handle_button, bouncetime=20)
+
+        RGBRotaryEncoderWithSwitch({ "rA": 14, "rB": 15, "SW": 4}, self.handle_left_rotate, self.handle_left_push)
+        RGBRotaryEncoderWithSwitch({ "rA": 17, "rB": 27, "SW": 22}, self.handle_right_rotate, self.handle_right_push)
 
         signal.signal(signal.SIGHUP, self.sigalrm_handler)
         signal.signal(signal.SIGINT, self.sigint_handler)
@@ -1326,6 +1432,24 @@ class Controller:
             self.run_update_callback()
             get_active_view().perform_next()
             self.update_screen()
+
+    def handle_left_rotate(self, direction):
+        pin = 5 if direction == -1 else 16 # A / X
+        self.handle_button_down(pin)
+        self.handle_button_up(pin)
+
+    def handle_right_rotate(self, direction):
+        pin = 6 if direction == -1 else 24 # B / Y
+        self.handle_button_down(pin)
+        self.handle_button_up(pin)
+
+    def handle_left_push(self):
+        # TODO
+        pass
+
+    def handle_right_push(self):
+        # TODO
+        pass
 
     def sigint_handler(self, signum, frame):
         get_screen().clear()
