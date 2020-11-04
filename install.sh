@@ -3,6 +3,10 @@
 REPO_NAME=pirate-audio-orac
 REPO_URL=https://github.com/wangpy/$REPO_NAME.git
 APP_DIR=/usr/local/pirate-audio-orac
+BRANCH=main
+if [[ ! -z "$1" ]]; then
+	BRANCH=$1
+fi
 
 pushd $HOME
 sudo apt-get update
@@ -10,7 +14,7 @@ sudo apt-get install -y git \
 	python3-rpi.gpio python3-spidev python3-pip python3-pil python3-numpy
 
 rm -rf $REPO_NAME
-git clone $REPO_URL
+git clone $REPO_URL -b $BRANCH
 cd $REPO_NAME
 pip3 install -r requirements.txt
 sudo rm -rf $APP_DIR
