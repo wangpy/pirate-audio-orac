@@ -1,12 +1,10 @@
-from PIL import Image
-from PIL import ImageDraw
-from PIL import ImageFont
-from ST7789 import ST7789
+from ptoled import PTOLEDDisplay
+from ptbuttons import PTUpButton, PTDownButton, PTCancelButton, PTSelectButton
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import BlockingOSCUDPServer
 from pythonosc.udp_client import SimpleUDPClient
 
-import RPi.GPIO as GPIO
+from functools import partial
 import json
 import netifaces as ni
 import os
@@ -516,6 +514,9 @@ class Color:
     def get_inversion(self):
         return Color(255 - self.r, 255 - self.g, 255 - self.b)
 
+    def is_filled_for_mono(self):
+        return True if (self.r + self.g + self.b) >= 128 * 3 else False
+
 Color_BLACK = Color(0, 0, 0)
 Color_WHITE = Color(255, 255, 255)
 Color_RED = Color(255, 0, 0)
@@ -537,44 +538,38 @@ ALIGN_RIGHT = 2
 
 class Screen:
     disp = None
-    img = None
-    draw = None
+    canvas = None
     font = None
     condensed_font = None
     disp_rect = None
 
     def __init__(self):
-        self.disp = ST7789(
-            port=0,
-            cs=1,
-            dc=9,
-            backlight=13,
-            spi_speed_hz=80 * 1000 * 1000
-        )
-        self.disp.begin()
-
-        self.img = Image.new('RGB', (self.disp.width, self.disp.height), color=Color_BLACK.to_tuple())
-        self.draw = ImageDraw.Draw(self.img)
-        self.font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 20)
-        self.condensed_font = ImageFont.truetype("/usr/share/fonts/truetype/piboto/PibotoCondensed-Bold.ttf", 20)
-        self.disp_rect = Rect(0, 0, self.disp.width, self.disp.height)
+        self.disp = PTOLEDDisplay()
+        self.disp.set_max_fps(10)
+        self.disp.reset()
+        self.canvas = self.disp.canvas
+        self.font = "/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf"
+        self.condensed_font = "/usr/share/fonts/truetype/freefont/FreeMono.ttf"
+        self.font_size = 10
+        self.disp_rect = Rect(0, 0, 128, 64)
 
     def clear(self):
-        self.draw_rect(self.disp_rect, Color_BLACK)
+        self.canvas.clear()
 
     def get_row_count(self):
         return 6
 
     def get_row_height(self):
-        return 30
+        return 8
 
     def get_row_rect(self, row_index):
-        return Rect(0, 30 + row_index * self.get_row_height(), self.disp.width, self.get_row_height())
+        return Rect(0, self.get_row_height() + row_index * self.get_row_height(), self.disp_rect.w, self.get_row_height())
 
     def draw_text_in_rect(self, text, rect, color, alignment=ALIGN_CENTER, font=None):
         if font is None:
             font = self.font
-        size_x, size_y = self.draw.textsize(text, font)
+        self.canvas.set_font(font, self.font_size)
+        size_x, size_y = self.canvas.textsize(text, 0)
 
         if alignment == ALIGN_CENTER:
             text_x = rect.x + (rect.w - size_x) // 2
@@ -583,10 +578,10 @@ class Screen:
         elif alignment == ALIGN_RIGHT:
             text_x = rect.x + (rect.w - size_x)
         text_y = rect.y + (rect.h - size_y) // 2
-        self.draw.text((text_x, text_y), text, font=font, fill=color.to_tuple())
+        self.canvas.text((text_x, text_y), text, fill=color.is_filled_for_mono())
 
     def draw_rect(self, rect, color):
-        self.draw.rectangle(rect.to_tuple(), color.to_tuple())
+        self.canvas.rectangle(rect.to_tuple(), fill=color.is_filled_for_mono())
 
     def draw_bar(self, pct, rect, fg_color, bg_color):
         self.draw_rect(rect, bg_color)
@@ -594,7 +589,7 @@ class Screen:
         self.draw_rect(bar_rect, fg_color)
 
     def update(self):
-        self.disp.display(self.img)
+        self.disp.draw()
 
 screen = Screen()
 
@@ -982,15 +977,15 @@ class BaseView:
     active_field_index = 0
     header_field = None
     footer_field = None
-    header_text = "MOVE (A+X: MENU)"
+    header_text = "MOVE (^+v: MENU)"
 
     def __init__(self):
         self.field_list = []
         for i in range(get_screen().get_row_count()):
             self.field_list.append(self.create_field_for_row(i))
         self.field_list[self.active_field_index].set_focused(True)
-        self.header_field = StaticTextField(-1, self.get_header_text, "^[A]", "[X]v", font=get_screen().condensed_font, is_rand_color=True)
-        self.footer_field = StaticTextField(6, self.get_footer_text, "<[B]", "[Y]>", font=get_screen().condensed_font, is_rand_color=True)
+        self.header_field = StaticTextField(-1, self.get_header_text, "^", "x", font=get_screen().condensed_font, is_rand_color=True)
+        self.footer_field = StaticTextField(6, self.get_footer_text, "v", "o", font=get_screen().condensed_font, is_rand_color=True)
 
     def reset_view_state(self):
         self.set_active_field_index(0)
@@ -1088,7 +1083,7 @@ class MenuView(BaseView):
         elif row_index == 5:
             return MenuSaveSettingsField(row_index)
         else:
-            return BaseField()
+            return BaseField(row_index)
 
     def get_row_count(self):
         return 6
@@ -1112,7 +1107,7 @@ class DeviceView(BaseView):
         return 6
 
 class ItemSelectView(BaseView):
-    header_text = "SELECT (A+X: EXIT)"
+    header_text = "SELECT (^+v: EXIT)"
     prepend_item_list = None
     item_list = None
     item_selected_callback = None
@@ -1243,8 +1238,9 @@ def get_active_view():
     return get_view_manager().get_active_view()
 
 class Controller:
-    BUTTONS = [5, 6, 16, 24]
-    LABELS = ['A', 'B', 'X', 'Y']
+    buttons = None
+    BUTTONS = range(4)
+    LABELS = ['^', 'v', 'x', 'o']
     pressed_button = 0
     pressed_counter = 0
     disable_update_count = 0
@@ -1252,11 +1248,11 @@ class Controller:
     update_callback = None
 
     def __init__(self):
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.BUTTONS, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        for pin in self.BUTTONS:
-            GPIO.add_event_detect(pin, GPIO.BOTH, self.handle_button, bouncetime=20)
-
+        self.buttons = [ PTUpButton(), PTDownButton(), PTCancelButton(), PTSelectButton() ]
+        for i in range(len(self.buttons)):
+            button = self.buttons[i]
+            button.when_pressed = partial(self.handle_button, i)
+            button.when_released = partial(self.handle_button, i)
         signal.signal(signal.SIGHUP, self.sigalrm_handler)
         signal.signal(signal.SIGINT, self.sigint_handler)
         signal.signal(signal.SIGTERM, self.sigint_handler)
@@ -1266,15 +1262,15 @@ class Controller:
         get_logger().log("Controller", log_text)
 
     def handle_button(self, pin):
-        state = GPIO.input(pin)
+        state = 0 if self.buttons[pin].is_pressed else 1
         if state == 0: # FALLING
             self.handle_button_down(pin)
         else: # RISING
             self.handle_button_up(pin)
 
     def handle_button_down(self, pin):
-        if (self.pressed_button == 5 and pin == 16 or
-            self.pressed_button == 16 and pin == 5):
+        if (self.pressed_button == 0 and pin == 1 or
+            self.pressed_button == 1 and pin == 0):
             self.run_update_callback()
             get_view_manager().pop_or_toggle_active_view()
             self.update_screen()
@@ -1289,12 +1285,12 @@ class Controller:
         offset_level = self.pressed_counter // 10
 
         label = self.LABELS[self.BUTTONS.index(pin)]
-        self.log("button_down button=%s counter=%d" % (label, self.pressed_counter))
-        if label == 'B':
+        self.log("button_down pin=%d button=%s counter=%d" % (pin, label, self.pressed_counter))
+        if label == 'x':
             self.run_update_callback()
             get_active_view().perform_decrease(offset_level)
             self.update_screen()
-        elif label == 'Y':
+        elif label == 'o':
             self.run_update_callback()
             get_active_view().perform_increase(offset_level)
             self.update_screen()
@@ -1317,12 +1313,12 @@ class Controller:
             return
 
         label = self.LABELS[self.BUTTONS.index(pin)]
-        self.log("button_up button=%s counter=%d" % (label, self.pressed_counter))
-        if label == 'A':
+        self.log("button_up pin=%d button=%s counter=%d" % (pin, label, self.pressed_counter))
+        if label == '^':
             self.run_update_callback()
             get_active_view().perform_previous()
             self.update_screen()
-        elif label == 'X':
+        elif label == 'v':
             self.run_update_callback()
             get_active_view().perform_next()
             self.update_screen()

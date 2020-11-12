@@ -1,3 +1,2 @@
 netifaces==0.10.4
 python-osc==1.7.4
-ST7789==0.0.2
