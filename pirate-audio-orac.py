@@ -1243,9 +1243,9 @@ def get_active_view():
     return get_view_manager().get_active_view()
 
 class Controller:
-    buttons = None
-    BUTTONS = range(4)
+    BUTTONS = [1, 2, 3, 4]
     LABELS = ['^', 'v', 'x', 'o']
+    ptbuttons = None
     pressed_button = 0
     pressed_counter = 0
     disable_update_count = 0
@@ -1253,11 +1253,12 @@ class Controller:
     update_callback = None
 
     def __init__(self):
-        self.buttons = [ PTUpButton(), PTDownButton(), PTCancelButton(), PTSelectButton() ]
-        for i in range(len(self.buttons)):
-            button = self.buttons[i]
-            button.when_pressed = partial(self.handle_button, i)
-            button.when_released = partial(self.handle_button, i)
+        self.ptbuttons = [ PTUpButton(), PTDownButton(), PTCancelButton(), PTSelectButton() ]
+        for i in range(len(self.ptbuttons)):
+            button = self.ptbuttons[i]
+            pin = self.BUTTONS[i]
+            button.when_pressed = partial(self.handle_button, pin)
+            button.when_released = partial(self.handle_button, pin)
         signal.signal(signal.SIGHUP, self.sigalrm_handler)
         signal.signal(signal.SIGINT, self.sigint_handler)
         signal.signal(signal.SIGTERM, self.sigint_handler)
@@ -1267,15 +1268,16 @@ class Controller:
         get_logger().log("Controller", log_text)
 
     def handle_button(self, pin):
-        state = 0 if self.buttons[pin].is_pressed else 1
+        button_index = self.BUTTONS.index(pin)
+        state = 0 if self.ptbuttons[button_index].is_pressed else 1
         if state == 0: # FALLING
             self.handle_button_down(pin)
         else: # RISING
             self.handle_button_up(pin)
 
     def handle_button_down(self, pin):
-        if (self.pressed_button == 0 and pin == 1 or
-            self.pressed_button == 1 and pin == 0):
+        if (self.pressed_button == 1 and pin == 2 or
+            self.pressed_button == 2 and pin == 1):
             self.run_update_callback()
             get_view_manager().pop_or_toggle_active_view()
             self.update_screen()
