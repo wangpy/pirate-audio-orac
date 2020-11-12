@@ -929,10 +929,14 @@ class RackSlotPageField(BaseField):
 
     def perform_decrease(self, offset_level):
         page_len = get_rack_view_state().get_active_slot_module().get_page_len()
+        if page_len == 0:
+            return
         get_rack_view_state().page_index = (get_rack_view_state().page_index + page_len - 1) % page_len
 
     def perform_increase(self, offset_level):
         page_len = get_rack_view_state().get_active_slot_module().get_page_len()
+        if page_len == 0:
+            return
         get_rack_view_state().page_index = (get_rack_view_state().page_index + 1) % page_len
 
 class RackSlotPageParamField(BaseField):
