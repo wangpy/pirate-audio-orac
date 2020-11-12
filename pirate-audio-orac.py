@@ -1384,10 +1384,11 @@ def get_controller():
 
 def main():
     # workaround for issue that jack is not started successfully during boot
+    sleep(3)
     os.system("/usr/bin/sudo /usr/bin/systemctl restart jack")
-    sleep(1)
+    sleep(3)
     os.system("/usr/bin/sudo /usr/bin/systemctl restart orac")
-    sleep(1)
+    sleep(3)
     get_controller().update_screen()
     get_osc_client().start_loop()
 
