@@ -1206,9 +1206,9 @@ class ViewManager:
     def log(self, log_text):
         get_logger().log("ViewManager", log_text)
 
-    def reset_view_state(self):
-        if self.active_model_view is not None:
-            self.active_model_view.reset_view_state()
+    def reset_all_view_state(self):
+        for view in self.modal_view_stack:
+            view.reset_view_state()
         for view in self.view_list:
             view.reset_view_state()
 
