@@ -11,6 +11,7 @@ import os
 import random
 import signal
 import sys
+from time import sleep
 
 class Logger():
     def log(self, source, log_text):
@@ -1376,6 +1377,11 @@ def get_controller():
 
 
 def main():
+    # workaround for issue that jack is not started successfully during boot
+    os.system("/usr/bin/sudo /usr/bin/systemctl restart jack")
+    sleep(1)
+    os.system("/usr/bin/sudo /usr/bin/systemctl restart orac")
+    sleep(1)
     get_controller().update_screen()
     get_osc_client().start_loop()
 
