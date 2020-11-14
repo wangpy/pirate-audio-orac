@@ -29,6 +29,11 @@ Run the following command to install the controller:
 curl https://raw.githubusercontent.com/wangpy/pirate-audio-orac/main/install.sh | bash
 ```
 
+For using with [pi-top\[4\]](https://www.pi-top.com/products/pi-top-4) enclosure, please use **dev/pi-top4** branch:
+```sh
+curl https://raw.githubusercontent.com/wangpy/pirate-audio-orac/main/install.sh dev/pi-top4 | bash
+```
+
 The contoller interface should start running when installation completes. The service runs when the device boots.
 
 ## Navigation
